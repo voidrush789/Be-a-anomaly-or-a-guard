@@ -1,0 +1,343 @@
+-- LocalScript inside StarterPlayerScripts or StarterGui
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+-- Saved configs per weapon name
+local savedConfigs = {}
+
+-- Default fallback values
+local defaults = {
+    DPS = 70,
+    Firerate = 0.09,
+    ReloadTime = 2.2,
+    ClipSize = 20
+}
+
+local currentTool = nil
+
+-- GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "WeaponConfigGUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player.PlayerGui
+
+local window = Instance.new("Frame")
+window.Name = "Window"
+window.Size = UDim2.new(0, 210, 0, 272)
+window.Position = UDim2.new(0.5, -105, 0.5, -136)
+window.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+window.BorderSizePixel = 0
+window.Active = true
+window.Parent = screenGui
+Instance.new("UICorner", window).CornerRadius = UDim.new(0, 8)
+
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 32)
+titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = window
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 8)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Text = "⚙ Weapon Config"
+titleLabel.Size = UDim2.new(1, -70, 1, 0)
+titleLabel.Position = UDim2.new(0, 8, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 11
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local minBtn = Instance.new("TextButton")
+minBtn.Text = "−"
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -50, 0, 5)
+minBtn.BackgroundColor3 = Color3.fromRGB(230, 146, 10)
+minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minBtn.TextSize = 16
+minBtn.Font = Enum.Font.GothamBold
+minBtn.BorderSizePixel = 0
+minBtn.Parent = titleBar
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Text = "✕"
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -25, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(192, 50, 50)
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextSize = 11
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.BorderSizePixel = 0
+closeBtn.Parent = titleBar
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+
+-- Panel
+local panel = Instance.new("Frame")
+panel.Size = UDim2.new(1, 0, 1, -32)
+panel.Position = UDim2.new(0, 0, 0, 32)
+panel.BackgroundTransparency = 1
+panel.Parent = window
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 7)
+layout.Parent = panel
+
+local pad = Instance.new("UIPadding")
+pad.PaddingTop = UDim.new(0, 7)
+pad.PaddingLeft = UDim.new(0, 11)
+pad.PaddingRight = UDim.new(0, 11)
+pad.Parent = panel
+
+-- Current gun label
+local gunLabel = Instance.new("TextLabel")
+gunLabel.Text = "No weapon equipped"
+gunLabel.Size = UDim2.new(1, 0, 0, 20)
+gunLabel.BackgroundTransparency = 1
+gunLabel.TextColor3 = Color3.fromRGB(100, 210, 255)
+gunLabel.TextSize = 11
+gunLabel.Font = Enum.Font.GothamBold
+gunLabel.TextXAlignment = Enum.TextXAlignment.Center
+gunLabel.Parent = panel
+
+-- Divider 1
+local div1 = Instance.new("Frame")
+div1.Size = UDim2.new(1, 0, 0, 1)
+div1.BackgroundColor3 = Color3.fromRGB(42, 42, 42)
+div1.BorderSizePixel = 0
+div1.Parent = panel
+
+-- Input helper
+local function createInput(labelText, defaultVal)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 28)
+    row.BackgroundTransparency = 1
+    row.Parent = panel
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = labelText
+    lbl.Size = UDim2.new(0.52, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    lbl.TextSize = 11
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = row
+
+    local box = Instance.new("TextBox")
+    box.Text = tostring(defaultVal)
+    box.Size = UDim2.new(0.45, 0, 0.82, 0)
+    box.Position = UDim2.new(0.54, 0, 0.09, 0)
+    box.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.TextSize = 11
+    box.Font = Enum.Font.Gotham
+    box.ClearTextOnFocus = false
+    box.BorderSizePixel = 0
+    box.Parent = row
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+
+    return box
+end
+
+local dpsBox      = createInput("DPS", defaults.DPS)
+local firerateBox = createInput("Firerate (FR)", defaults.Firerate)
+local reloadBox   = createInput("Reload Time (RT)", defaults.ReloadTime)
+local clipBox     = createInput("Clip Size (CS)", defaults.ClipSize)
+
+-- Divider 2
+local div2 = Instance.new("Frame")
+div2.Size = UDim2.new(1, 0, 0, 1)
+div2.BackgroundColor3 = Color3.fromRGB(42, 42, 42)
+div2.BorderSizePixel = 0
+div2.Parent = panel
+
+-- Apply Button
+local applyBtn = Instance.new("TextButton")
+applyBtn.Text = "✔ Apply"
+applyBtn.Size = UDim2.new(1, 0, 0, 30)
+applyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
+applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+applyBtn.TextSize = 11
+applyBtn.Font = Enum.Font.GothamBold
+applyBtn.BorderSizePixel = 0
+applyBtn.Parent = panel
+Instance.new("UICorner", applyBtn).CornerRadius = UDim.new(0, 6)
+
+-- Watermark
+local watermark = Instance.new("TextLabel")
+watermark.Text = "Made By Voidrush"
+watermark.Size = UDim2.new(1, 0, 0, 16)
+watermark.BackgroundTransparency = 1
+watermark.TextColor3 = Color3.fromRGB(180, 180, 180)
+watermark.TextTransparency = 0.65
+watermark.TextSize = 10
+watermark.Font = Enum.Font.Gotham
+watermark.TextXAlignment = Enum.TextXAlignment.Center
+watermark.Parent = panel
+
+-- Load saved config into input boxes for a gun
+local function loadConfig(toolName)
+    local cfg = savedConfigs[toolName] or defaults
+    dpsBox.Text      = tostring(cfg.DPS)
+    firerateBox.Text = tostring(cfg.Firerate)
+    reloadBox.Text   = tostring(cfg.ReloadTime)
+    clipBox.Text     = tostring(cfg.ClipSize)
+end
+
+-- Patch the tool's config module
+local function patchTool(tool)
+    if not tool then return end
+    local toolName = tool.Name
+    local cfg = tool:FindFirstChild(toolName .. "Config")
+        or tool:FindFirstChild("WeaponConfig")
+        or tool:FindFirstChild("GunConfig")
+        or tool:FindFirstChildWhichIsA("ModuleScript")
+
+    if cfg then
+        pcall(function()
+            local mod = require(cfg)
+            local saved = savedConfigs[toolName]
+            if saved then
+                mod.DPS        = saved.DPS
+                mod.Firerate   = saved.Firerate
+                mod.ReloadTime = saved.ReloadTime
+                mod.ClipSize   = saved.ClipSize
+            end
+        end)
+    end
+end
+
+-- Apply button logic
+local function applyConfig()
+    if not currentTool then return end
+
+    local dps      = tonumber(dpsBox.Text)
+    local firerate = tonumber(firerateBox.Text)
+    local reload   = tonumber(reloadBox.Text)
+    local clip     = tonumber(clipBox.Text)
+
+    if not (dps and firerate and reload and clip) then
+        applyBtn.Text = "⚠ Invalid!"
+        applyBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        task.delay(1.5, function()
+            applyBtn.Text = "✔ Apply"
+            applyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
+        end)
+        return
+    end
+
+    local toolName = currentTool.Name
+
+    -- Save to memory
+    savedConfigs[toolName] = {
+        DPS = dps,
+        Firerate = firerate,
+        ReloadTime = reload,
+        ClipSize = clip
+    }
+
+    patchTool(currentTool)
+
+    applyBtn.Text = "✔ Saved!"
+    applyBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 200)
+    task.delay(1.5, function()
+        applyBtn.Text = "✔ Apply"
+        applyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
+    end)
+end
+
+applyBtn.MouseButton1Click:Connect(applyConfig)
+
+-- Watch for tool equip/unequip
+local function onToolEquipped(tool)
+    if not tool:IsA("Tool") then return end
+    currentTool = tool
+    gunLabel.Text = "🔫 " .. tool.Name
+    loadConfig(tool.Name)
+    patchTool(tool)
+end
+
+local function onToolUnequipped()
+    currentTool = nil
+    gunLabel.Text = "No weapon equipped"
+end
+
+local function connectCharacter(character)
+    character.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            onToolEquipped(child)
+        end
+    end)
+    character.ChildRemoved:Connect(function(child)
+        if child:IsA("Tool") and child == currentTool then
+            onToolUnequipped()
+        end
+    end)
+    -- Check if already holding something
+    for _, child in ipairs(character:GetChildren()) do
+        if child:IsA("Tool") then
+            onToolEquipped(child)
+        end
+    end
+end
+
+-- Auto-apply saved config when gun enters backpack
+player.Backpack.ChildAdded:Connect(function(tool)
+    if tool:IsA("Tool") and savedConfigs[tool.Name] then
+        task.wait(0.1)
+        patchTool(tool)
+    end
+end)
+
+if player.Character then
+    connectCharacter(player.Character)
+end
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.8)
+    connectCharacter(char)
+end)
+
+-- Drag (mouse + touch)
+local dragging, dragStart, startPos
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = window.Position
+    end
+end)
+titleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        window.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- Minimize / Close
+local minimized = false
+minBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    panel.Visible = not minimized
+    window.Size = minimized and UDim2.new(0, 210, 0, 32) or UDim2.new(0, 210, 0, 272)
+    minBtn.Text = minimized and "+" or "−"
+end)
+closeBtn.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
